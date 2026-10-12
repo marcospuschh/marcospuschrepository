@@ -1,0 +1,28 @@
+name: Build plugin
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (Apple Silicon + Intel)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DAURORA_COPY=OFF -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      - name: Build
+        run: cmake --build build --config Release -j 4
+      - name: Package .dmg
+        run: |
+          A=build/AuroraGuitarStudio_artefacts/Release
+          mkdir dmg
+          cp -R "$A/VST3/Aurora Guitar Studio.vst3" dmg/
+          cp -R "$A/AU/Aurora Guitar Studio.component" dmg/
+          cp -R "$A/Standalone/Aurora Guitar Studio.app" dmg/
+          codesign --force --deep -s - dmg/*.vst3 dmg/*.component dmg/*.app || true
+          hdiutil create -volname "Aurora Guitar Studio" -srcfolder dmg -ov -format UDZO AuroraGuitarStudio-mac.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AuroraGuitarStudio-mac
+          path: AuroraGuitarStudio-mac.dmg
